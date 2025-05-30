@@ -46,9 +46,15 @@
   "Title for the hydration notification."
   :type 'string)
 
+(defcustom drink-water-minimum-interval-minutes 60
+  "Minimum number of minutes between hydration notifications.
+No notification will be shown more frequently than this interval."
+  :type 'integer)
+
 (defvar drink-water--timer nil)
 (defvar drink-water--cups-today 0)
 (defvar drink-water--last-reset (current-time))
+(defvar drink-water--last-notification-time nil)
 
 (defun drink-water--daily-need-ml ()
   "Calculate daily water need in milliliters."
@@ -59,11 +65,12 @@
   (max 1 (ceiling (/ (drink-water--daily-need-ml) (float drink-water-cup-size-ml)))))
 
 (defun drink-water--interval-minutes ()
-  "Calculate interval in minutes between reminders."
+  "Calculate interval in minutes between reminders, respecting the minimum interval."
   (let* ((hours (- drink-water-sleep-hour drink-water-wake-hour))
          (total-minutes (* hours 60))
-         (cups (drink-water--cups-per-day)))
-    (max 30 (floor (/ total-minutes cups)))))
+         (cups (drink-water--cups-per-day))
+         (suggested (floor (/ total-minutes cups))))
+    (max drink-water-minimum-interval-minutes suggested)))
 
 (defun drink-water--random-quote ()
   "Return a random hydration quote from the `drink-water-quotes' variable."
@@ -89,16 +96,26 @@
   "Remind the user to drink water, and update state."
   (drink-water--reset-if-needed)
   (when (< drink-water--cups-today (drink-water--cups-per-day))
-    (drink-water--notify)))
+    (let ((now (float-time (current-time))))
+      (when (or (not drink-water--last-notification-time)
+                (>= (- now drink-water--last-notification-time)
+                    (* 60 drink-water-minimum-interval-minutes)))
+        (drink-water--notify)
+        (setq drink-water--last-notification-time now)))))
 
 ;;;###autoload
 (define-minor-mode drink-water-mode
-  "Global minor mode to remind you to drink water at smart intervals."
+  "Global minor mode to remind you to drink water at smart intervals.
+
+When enabled, a timer will periodically remind you to drink water, but never more
+frequently than `drink-water-minimum-interval-minutes`. The interval is calculated
+based on your daily water needs and day length, but is always at least the minimum."
   :global t
   :group 'drink-water
   (if drink-water-mode
       (progn
         (drink-water--maybe-cancel-timer)
+        (setq drink-water--last-notification-time nil)
         (setq drink-water--timer
               (run-at-time 0 (drink-water--interval-minutes) #'drink-water--reminder)))
     (drink-water--maybe-cancel-timer)))
