@@ -45,8 +45,5 @@ Run tests with:
 ert-run-tests-interactively RET drink-water RET
 ```
 
-## License
-MIT
-
 ---
 *Stay hydrated, stay productive!* 
