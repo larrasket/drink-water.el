@@ -64,7 +64,7 @@ ert-run-tests-interactively RET drink-water RET
 ```
 
 ## License
-MIT
+GPLv3
 
 ---
 *Stay hydrated, stay productive!* 
